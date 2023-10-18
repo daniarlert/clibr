@@ -1,9 +1,20 @@
 import typer
 
+import books
+import quotes
 
-def main(name: str):
-    print(f"Hello {name}")
+app = typer.Typer()
+app.add_typer(
+    books.app,
+    name="books",
+    help="Manage books.",
+)
+app.add_typer(
+    quotes.app,
+    name="quotes",
+    help="Manage quotes.",
+)
 
 
 if __name__ == "__main__":
-    typer.run(main)
+    app()
