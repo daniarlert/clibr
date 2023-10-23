@@ -1,30 +1,46 @@
-from enum import Enum
-
 import typer
+from typing_extensions import Annotated
+
+from models import Author, Book, BookStatus
 
 app = typer.Typer()
 
 
-class BookStatus(str, Enum):
-    wanted = "wanted"
-    pending = "pending"
-    reading = "reading"
-    finished = "finished"
-    abandoned = "abandoned"
-
-
 @app.command("add")
 def add_book(
-    title: str = "",
-    author: str = "",
+    title: Annotated[
+        str,
+        typer.Option(prompt="Book title"),
+    ],
+    book_author: Annotated[
+        str,
+        typer.Option("--author", prompt="Author name"),
+    ],
     status: BookStatus = BookStatus.pending,
     fav: bool = False,
 ):
-    print(f"adding book '{title}' by '{author}' with status '{status.value}'")
+    author = Author()
+    author.name = book_author
+
+    book = Book()
+    book.author_id = author.id
+    book.title = title
+    book.status = status
+    book.fav = fav
+
+    print(book)
+    print(book_author)
 
 
 @app.command("delete")
-def delete_book(title: str):
+def delete_book(
+    title: Annotated[
+        str,
+        typer.Option(
+            prompt="Book title",
+        ),
+    ],
+):
     typer.confirm(
         "Are you sure you want to delete it?",
         abort=True,
