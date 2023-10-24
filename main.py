@@ -1,9 +1,15 @@
 import typer
 
 import books
+import config
 import quotes
 
-app = typer.Typer()
+cfg = config.Config()
+
+app = typer.Typer(
+    name=cfg.app_name,
+    help=cfg.app_description,
+)
 app.add_typer(
     books.app,
     name="books",
