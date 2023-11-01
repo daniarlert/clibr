@@ -2,7 +2,7 @@ import tomllib
 from pathlib import Path
 
 import typer
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import SQLModel, create_engine
 
 
 class Config:
@@ -20,19 +20,14 @@ class Config:
             data = tomllib.load(f)
             poetry = data["tool"]["poetry"]
 
-            self.app_name = poetry["name"]
-            self.app_version = poetry["version"]
-            self.app_description = poetry["description"]
+            self.APP_NAME = poetry["name"]
+            self.APP_VERSIOn = poetry["version"]
+            self.APP_SHORT_DESCRIPTION = poetry["description"]
 
-        self.app_dir = typer.get_app_dir(self.app_name)
-        self.db_path: Path = Path(self.app_dir) / "clibr.db"
-        Path(self.app_dir).mkdir(parents=True, exist_ok=True)
+        self.APP_DIR = typer.get_app_dir(self.APP_NAME)
+        self.DB_PATH: Path = Path(self.APP_DIR) / "clibr.db"
+        Path(self.APP_DIR).mkdir(parents=True, exist_ok=True)
 
-        sqlite_url = f"sqlite:///{self.db_path}"
-        self.db_engine = create_engine(sqlite_url)
-        SQLModel.metadata.create_all(self.db_engine)
-
-        self.session = Session(self.db_engine)
-
-    def close(self):
-        self.session.close_all()
+        sqlite_url = f"sqlite:///{self.DB_PATH}"
+        self.DB_ENGINE = create_engine(sqlite_url)
+        SQLModel.metadata.create_all(self.DB_ENGINE)

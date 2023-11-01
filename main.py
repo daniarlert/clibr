@@ -7,8 +7,8 @@ import quotes
 cfg = config.Config()
 
 app = typer.Typer(
-    name=cfg.app_name,
-    help=cfg.app_description,
+    name=cfg.APP_NAME,
+    help=cfg.APP_SHORT_DESCRIPTION,
 )
 app.add_typer(
     books.app,

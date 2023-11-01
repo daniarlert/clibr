@@ -25,19 +25,6 @@ class BookAuthorLink(SQLModel, table=True):
     )
 
 
-class BookQuoteLink(SQLModel, table=True):
-    book_id: Optional[int] = Field(
-        default=None,
-        foreign_key="book.id",
-        primary_key=True,
-    )
-    quote_id: Optional[int] = Field(
-        default=None,
-        foreign_key="quote.id",
-        primary_key=True,
-    )
-
-
 class Book(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(index=True, nullable=False)
@@ -49,12 +36,11 @@ class Book(SQLModel, table=True):
         link_model=BookAuthorLink,
     )
     quotes: list["Quote"] = Relationship(
-        back_populates="books",
-        link_model=BookQuoteLink,
+        back_populates="book",
     )
 
     def __str__(self):
-        return f'{self.id}: "{self.title}" by {self.author_id}'
+        return f'{self.id}: "{self.title}"'
 
 
 class Author(SQLModel, table=True):
@@ -73,10 +59,14 @@ class Author(SQLModel, table=True):
 class Quote(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     quote: str = Field(index=True, nullable=False)
+    fav: bool = False
 
-    books: list["Book"] = Relationship(
+    book_id: Optional[int] = Field(
+        default=None,
+        foreign_key="book.id",
+    )
+    book: Optional[Book] = Relationship(
         back_populates="quotes",
-        link_model=BookQuoteLink,
     )
 
     def __str__(self) -> str:
