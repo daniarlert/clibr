@@ -59,8 +59,7 @@ class BookRepository(BaseRepository):
         status: Optional[BookStatus] = None,
         fav: Optional[bool] = None,
     ) -> list[Book] | None:
-        # stmt = select(self.model_type)
-        stmt = select(self.model_type, Author.name.label("author"))
+        stmt = select(self.model_type, Author)
 
         if words is not None:
             title_conditions = [
@@ -129,11 +128,39 @@ class QuoteRepository(BaseRepository):
 
         original_quote.quote = quote.quote
 
-    def search_quote_like(self, session: Session, terms: list[str]) -> list[str]:
-        # TODO: implement
-        pass
+    def list(
+        self,
+        session: Session,
+        words: Optional[list[str]] = None,
+        book_id: Optional[int] = None,
+        author_id: Optional[int] = None,
+        fav: Optional[bool] = None,
+    ) -> list[Quote]:
+        stmt = select(
+            self.model_type,
+            Book,
+            Author,
+        ).where(self.model_type.book_id == Book.id)
 
-    def list(self, session: Session) -> list[Quote]:
-        stmt = select(self.model_type)
-        results = session.exec(stmt)
-        return results.all()
+        stmt = stmt.join(
+            BookAuthorLink, self.model_type.book_id == BookAuthorLink.book_id
+        )
+        stmt = stmt.join(Author, Author.id == BookAuthorLink.author_id)
+
+        if words is not None:
+            quote_conditions = [
+                self.model_type.quote.ilike(f"%{word}%") for word in words
+            ]
+            stmt = stmt.where(or_(*quote_conditions))
+
+        if book_id is not None:
+            stmt = stmt.where(self.model_type.id == book_id)
+
+        if author_id is not None:
+            stmt = stmt.where(Author.id == author_id)
+
+        if fav is not None:
+            stmt = stmt.where(self.model_type.fav == fav)
+
+        result = session.exec(stmt)
+        return result.all()

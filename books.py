@@ -98,7 +98,7 @@ def list_books(
             "-f",
             is_flag=True,
         ),
-    ] = False,
+    ] = None,
 ):
     book_repo = BookRepository()
     author_repo = AuthorRepository()
@@ -129,7 +129,7 @@ def list_books(
                 )
                 return
 
-            table = Table(title="Books")
+            table = Table(title="Books", show_lines=True)
             table.add_column("Title", style="bold")
             table.add_column("Author")
             table.add_column("Status")
@@ -137,10 +137,10 @@ def list_books(
 
             for result in results:
                 table.add_row(
-                    result[0].title.title(),
-                    result[1],
-                    result[0].status.capitalize(),
-                    "Yes" if result[0].fav else "No",
+                    result["Book"].title.title(),
+                    result["Author"].name,
+                    result["Book"].status.capitalize(),
+                    "Yes" if result["Book"].fav else "No",
                 )
 
             print(table)
