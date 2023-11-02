@@ -1,6 +1,7 @@
 import typer
 from rich import print
 from rich.console import Console
+from rich.table import Table
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from typing_extensions import Annotated
@@ -18,19 +19,27 @@ err_console = Console(stderr=True)
 def add_book(
     book_title: Annotated[
         str,
-        typer.Option("--title", prompt="Book title"),
+        typer.Option("--title", "-t", prompt="Book title"),
     ],
     book_author: Annotated[
         str,
-        typer.Option("--author", prompt="Author name"),
+        typer.Option("--author", "-a", prompt="Author name"),
     ],
     book_status: Annotated[
         BookStatus,
-        typer.Option("--status"),
+        typer.Option(
+            "--status",
+            "-s",
+            show_choices=True,
+        ),
     ] = BookStatus.pending,
     book_fav: Annotated[
         bool,
-        typer.Option("--fav"),
+        typer.Option(
+            "--fav",
+            "-f",
+            is_flag=True,
+        ),
     ] = False,
 ):
     book_repo = BookRepository()
@@ -64,12 +73,89 @@ def add_book(
             session.rollback()
 
 
+@app.command("list")
+def list_books(
+    words_in_title: Annotated[
+        list[str],
+        typer.Option(
+            "--words",
+            "-w",
+            help="Words in title",
+        ),
+    ] = None,
+    book_author: Annotated[
+        str,
+        typer.Option("--author", "-a"),
+    ] = None,
+    book_status: Annotated[
+        BookStatus,
+        typer.Option("--status", "-s"),
+    ] = None,
+    book_fav: Annotated[
+        bool,
+        typer.Option(
+            "--fav",
+            "-f",
+            is_flag=True,
+        ),
+    ] = False,
+):
+    book_repo = BookRepository()
+    author_repo = AuthorRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            author = None
+            if book_author is not None:
+                author = author_repo.get_by_name(session, book_author)
+                if author is None:
+                    err_console.print(
+                        "The author specified was not found",
+                    )
+                    return
+
+            author_id = author.id if author else None
+            results = book_repo.list(
+                session,
+                words=words_in_title,
+                author_id=author_id,
+                status=book_status,
+                fav=book_fav,
+            )
+            if not len(results):
+                err_console.print(
+                    "No books with the specified criteria were found in your library",
+                )
+                return
+
+            table = Table(title="Books")
+            table.add_column("Title", style="bold")
+            table.add_column("Author")
+            table.add_column("Status")
+            table.add_column("Favourite")
+
+            for result in results:
+                table.add_row(
+                    result[0].title.title(),
+                    result[1],
+                    result[0].status.capitalize(),
+                    "Yes" if result[0].fav else "No",
+                )
+
+            print(table)
+
+        except SQLAlchemyError:
+            err_console.print("Oops, something went wrong!")
+
+
 @app.command("delete")
 def delete_book(
     book_title: Annotated[
         str,
         typer.Option(
             "--title",
+            "-t",
             prompt="Book title",
         ),
     ],

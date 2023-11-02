@@ -18,15 +18,15 @@ err_console = Console(stderr=True)
 def add_quote(
     text: Annotated[
         str,
-        typer.Option("--quote", prompt="Quote"),
+        typer.Option("--quote", "-q", prompt="Quote"),
     ],
     book_title: Annotated[
         str,
-        typer.Option("--title", prompt="Book title"),
+        typer.Option("--title", "-t", prompt="Book title"),
     ],
     quote_fav: Annotated[
         bool,
-        typer.Option("--fav"),
+        typer.Option("--fav", "-f"),
     ] = False,
 ):
     book_repo = BookRepository()
@@ -61,7 +61,7 @@ def add_quote(
 def delete_quote(
     quote: Annotated[
         str,
-        typer.Option(prompt="Quote"),
+        typer.Option("--quote", "-q", prompt="Quote"),
     ],
 ):
     typer.confirm(

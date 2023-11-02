@@ -1,8 +1,9 @@
 from abc import ABC, abstractclassmethod
+from typing import Optional
 
-from sqlmodel import Session, SQLModel, select
+from sqlmodel import Session, SQLModel, or_, select
 
-from models import Author, Book, Quote
+from models import Author, Book, BookAuthorLink, BookStatus, Quote
 
 
 class BaseRepository(ABC):
@@ -25,10 +26,9 @@ class BaseRepository(ABC):
         item = self.get_by_id(session, id)
         session.delete(item)
 
-    def list(self, session: Session) -> None:
-        stmt = select(self.model_type)
-        results = session.exec(stmt)
-        return results.all()
+    @abstractclassmethod
+    def list(self, session: Session) -> list[SQLModel]:
+        pass
 
 
 class BookRepository(BaseRepository):
@@ -51,6 +51,41 @@ class BookRepository(BaseRepository):
         stmt = select(self.model_type).where(self.model_type.title == title)
         return session.exec(stmt).first()
 
+    def list(
+        self,
+        session: Session,
+        words: Optional[list[str]] = None,
+        author_id: Optional[int] = None,
+        status: Optional[BookStatus] = None,
+        fav: Optional[bool] = None,
+    ) -> list[Book] | None:
+        # stmt = select(self.model_type)
+        stmt = select(self.model_type, Author.name.label("author"))
+
+        if words is not None:
+            title_conditions = [
+                self.model_type.title.ilike(f"%{word}%") for word in words
+            ]
+            stmt = stmt.where(or_(*title_conditions))
+
+        if author_id is not None:
+            stmt = stmt.join(BookAuthorLink).where(
+                BookAuthorLink.author_id == author_id
+            )
+
+        if status is not None:
+            stmt = stmt.where(self.model_type.status == status)
+
+        if fav is not None:
+            stmt = stmt.where(self.model_type.fav == fav)
+
+        stmt = stmt.join(BookAuthorLink, self.model_type.id == BookAuthorLink.book_id)
+        stmt = stmt.join(Author, Author.id == BookAuthorLink.author_id)
+
+        results = session.exec(stmt)
+        books = results.all()
+        return books
+
 
 class AuthorRepository(BaseRepository):
     def __init__(self) -> None:
@@ -69,6 +104,11 @@ class AuthorRepository(BaseRepository):
     def get_by_name(self, session: Session, name: str) -> Author | None:
         stmt = select(self.model_type).where(self.model_type.name == name)
         return session.exec(stmt).first()
+
+    def list(self, session: Session) -> list[Author]:
+        stmt = select(self.model_type)
+        results = session.exec(stmt)
+        return results.all()
 
 
 class QuoteRepository(BaseRepository):
@@ -93,7 +133,7 @@ class QuoteRepository(BaseRepository):
         # TODO: implement
         pass
 
-    def list_by_book_id(self, session: Session, book_id: int) -> list[Quote]:
-        stmt = select(self.model_type).where(self.model_type.book_id == book_id)
+    def list(self, session: Session) -> list[Quote]:
+        stmt = select(self.model_type)
         results = session.exec(stmt)
         return results.all()
