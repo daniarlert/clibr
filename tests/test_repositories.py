@@ -1,52 +1,8 @@
-import pytest
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session
 
+from .utils import session
 from models import Author, Book, Quote
-from repositories import AuthorRepository, BookRepository, QuoteRepository
-
-
-@pytest.fixture
-def session():
-    test_engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(test_engine)
-
-    with Session(test_engine) as session:
-        yield session
-
-
-def test_book_repository(session: Session):
-    book_repo = BookRepository()
-    author = Author(name="Tester")
-    book = Book(title="Test Book", authors=[author])
-
-    # Test add new book
-    book_repo.add(session, book)
-    session.commit()
-
-    retrieved_book = book_repo.get_by_title(session, "Test Book")
-    assert f"{retrieved_book}" == f"{book}"
-
-    # Test update book
-    book.fav = True
-    book_repo.update(session, book)
-    session.commit()
-    session.refresh(book)
-
-    book = book_repo.get_by_title(session, "Test Book")
-    assert book.fav is True
-
-    # Test list books
-    books = book_repo.list(session)
-    assert len(books) != 0
-
-    # Test delete book
-    book_repo.delete(session, book.id)
-    session.commit()
-
-    book = book_repo.get_by_title(session, "Test Book")
-    assert book is None
-
-    session.close()
+from repositories import AuthorRepository, QuoteRepository
 
 
 def test_author_repository(session: Session):
