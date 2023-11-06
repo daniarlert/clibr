@@ -1,8 +1,8 @@
 import typer
 
-import books
+import commands.books as books
+import commands.quotes as quotes
 import config
-import quotes
 
 cfg = config.Config()
 
