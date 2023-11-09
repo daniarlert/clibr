@@ -1,8 +1,7 @@
 import typer
 
-import commands.books as books
-import commands.quotes as quotes
 import config
+from commands import books_app, quotes_app
 
 cfg = config.Config()
 
@@ -11,12 +10,12 @@ app = typer.Typer(
     help=cfg.APP_SHORT_DESCRIPTION,
 )
 app.add_typer(
-    books.app,
+    books_app,
     name="books",
     help="Manage books.",
 )
 app.add_typer(
-    quotes.app,
+    quotes_app,
     name="quotes",
     help="Manage quotes.",
 )

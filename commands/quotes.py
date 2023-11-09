@@ -42,7 +42,9 @@ def add_quote(
         try:
             book = book_repo.get_by_title(session, book_title)
             if book is None:
-                err_console(f"Oops, the book '{book_title}' isn't in the library yet!")
+                err_console.print(
+                    f"Oops, the book '{book_title}' isn't in the library yet!"
+                )
                 return
 
             quote = Quote(

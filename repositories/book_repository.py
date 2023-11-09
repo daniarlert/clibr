@@ -12,7 +12,6 @@ class BookRepository(BaseRepository):
         super().__init__(Book)
 
     def add(self, session: Session, book: Book) -> None:
-        print(f"{book}")
         session.add(book)
 
     def update(self, session: Session, book: Book) -> None:
