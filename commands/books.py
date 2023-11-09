@@ -225,13 +225,55 @@ def export_books(
                         }
                     )
 
-                print("CSV file created!")
+                print("CSV file has been successfully created")
 
         except SQLAlchemyError:
-            err_console.print(
-                "There was an error and the export could't be made.",
-            )
-            return
+            err_console.print("Oops, something went wrong! Export couldn't be made")
+
+
+@app.command("import")
+def import_books(
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--path",
+            help="file path",
+        ),
+    ] = None,
+) -> None:
+    book_repo = BookRepository()
+    author_repo = AuthorRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            file_path = file if file is not None else "books.csv"
+            with open(file_path) as books_file:
+                reader = csv.DictReader(books_file)
+                for row in reader:
+                    author_name = row["author"]
+                    author = author_repo.get_by_name(session, author_name)
+                    if author is None:
+                        author = Author(name=author_name)
+                        author_repo.add(session, author)
+
+                    book_title = row["title"]
+                    book = book_repo.get_by_title(session, book_title)
+                    if book is None:
+                        book = Book(
+                            title=book_title,
+                            authors=[author],
+                            status=row["status"],
+                            fav=True if row["fav"] == "Yes" else False,
+                        )
+                        book_repo.add(session, book)
+
+                    session.commit()
+
+                print("Import has been successful!")
+
+        except SQLAlchemyError:
+            err_console.print("Oops, something went wrong! Import failed")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from sqlmodel import Session
 from typing_extensions import Annotated
 
 import config
-from models import Quote
+from models import Quote, Author, Book
 from repositories import AuthorRepository, BookRepository, QuoteRepository
 
 app = typer.Typer()
@@ -236,12 +236,65 @@ def export_quotes(
                         }
                     )
 
-                print("CSV file created!")
+                print("CSV file has been successfully created")
 
         except SQLAlchemyError:
-            err_console.print(
-                "There was an error and the export could't be made.",
-            )
+            err_console.print("Oops, something went wrong! Export couldn't be made")
+
+
+@app.command("import")
+def import_quotes(
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--path",
+            help="file path",
+        ),
+    ] = None,
+) -> None:
+    author_repo = AuthorRepository()
+    book_repo = BookRepository()
+    quote_repo = QuoteRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            file_path = file if file is not None else "quotes.csv"
+            with open(file_path) as books_file:
+                reader = csv.DictReader(books_file)
+                for row in reader:
+                    author_name = row["author"]
+                    author = author_repo.get_by_name(session, author_name)
+                    if author is None:
+                        author = Author(name=author_name)
+                        author_repo.add(session, author)
+
+                    book_title = row["book"]
+                    book = book_repo.get_by_title(session, book_title)
+                    if book is None:
+                        book = Book(
+                            title=book_title,
+                            authors=[author],
+                        )
+                        book_repo.add(session, book)
+
+                    quote_text = row["quote"]
+                    quote = quote_repo.get_by_quote(session, quote_text)
+                    if quote is None:
+                        quote = Quote(
+                            quote=quote_text,
+                            book=book,
+                            book_id=book.id,
+                            fav=True if row["fav"] == "Yes" else False,
+                        )
+                        quote_repo.add(session, quote)
+
+                    session.commit()
+
+                print("Import has been successful!")
+
+        except SQLAlchemyError:
+            err_console.print("Oops, something went wrong! Import failed")
 
 
 if __name__ == "__main__":
