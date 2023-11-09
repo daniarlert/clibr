@@ -2,8 +2,9 @@
 name = "clibr"
 version = "0.1.0"
 description = "A books & quotes manager for the terminal."
-authors = ["daniarlert <24715931+daniarlert@users.noreply.github.com>"]
+authors = ["dnlzrgz <24715931+dnlzrgz@users.noreply.github.com>"]
 readme = "README.md"
+
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -17,8 +18,17 @@ black = "^23.10.0"
 ruff = "^0.1.0"
 commitizen = "^3.12.0"
 pytest = "^7.4.3"
-isort = "^5.12.0"
 pyupgrade = "^3.15.0"
+
+
+[tool.ruff]
+target-version = "py312"
+
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F811"]
+"**/{tests,docs,tools}/*" = ["F401", "F811"]
+
 
 [build-system]
 requires = ["poetry-core"]
