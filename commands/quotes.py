@@ -1,3 +1,7 @@
+import csv
+from pathlib import Path
+from typing import Optional
+
 import typer
 from rich import print
 from rich.console import Console
@@ -191,6 +195,53 @@ def delete_quote(
                 "Oops, something went wrong! Changes have been rolled back"
             )
             session.rollback()
+
+
+@app.command("export")
+def export_quotes(
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--path",
+            help="file path",
+        ),
+    ] = None,
+) -> None:
+    quote_repo = QuoteRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            results = quote_repo.list(session)
+            if not len(results):
+                err_console.print(
+                    "No quotes found in your library",
+                )
+                return
+
+            file_path = file if file is not None else "quotes.csv"
+            with open(file_path, mode="w") as quotes_file:
+                fieldnames = ["id", "quote", "book", "author", "fav"]
+                writer = csv.DictWriter(quotes_file, fieldnames=fieldnames)
+
+                writer.writeheader()
+                for result in results:
+                    writer.writerow(
+                        {
+                            "id": result["Quote"].id,
+                            "quote": result["Quote"].quote,
+                            "book": result["Book"].title.title(),
+                            "author": result["Author"].name,
+                            "fav": "Yes" if result["Quote"].fav else "No",
+                        }
+                    )
+
+                print("CSV file created!")
+
+        except SQLAlchemyError:
+            err_console.print(
+                "There was an error and the export could't be made.",
+            )
 
 
 if __name__ == "__main__":

@@ -1,3 +1,7 @@
+import csv
+from pathlib import Path
+from typing import Optional
+
 import typer
 from rich import print
 from rich.console import Console
@@ -180,6 +184,54 @@ def delete_book(
                 "Oops, something went wrong! Changes have been rolled back"
             )
             session.rollback()
+
+
+@app.command("export")
+def export_books(
+    file: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--path",
+            help="file path",
+        ),
+    ] = None,
+) -> None:
+    book_repo = BookRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            results = book_repo.list(session)
+            if not len(results):
+                err_console.print(
+                    "No books found in your library",
+                )
+                return
+
+            file_path = file if file is not None else "books.csv"
+            with open(file_path, mode="w") as books_file:
+                fieldnames = ["id", "title", "author", "status", "fav"]
+                writer = csv.DictWriter(books_file, fieldnames=fieldnames)
+
+                writer.writeheader()
+                for result in results:
+                    writer.writerow(
+                        {
+                            "id": result["Book"].id,
+                            "title": result["Book"].title.title(),
+                            "author": result["Author"].name,
+                            "status": result["Book"].status.capitalize(),
+                            "fav": "Yes" if result["Book"].fav else "No",
+                        }
+                    )
+
+                print("CSV file created!")
+
+        except SQLAlchemyError:
+            err_console.print(
+                "There was an error and the export could't be made.",
+            )
+            return
 
 
 if __name__ == "__main__":
