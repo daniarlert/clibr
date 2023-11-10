@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 from rich import print
 from rich.console import Console
+from rich.progress import track
 from rich.table import Table
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
@@ -214,7 +215,7 @@ def export_books(
                 writer = csv.DictWriter(books_file, fieldnames=fieldnames)
 
                 writer.writeheader()
-                for result in results:
+                for result in track(results, description="Exporting..."):
                     writer.writerow(
                         {
                             "id": result["Book"].id,
@@ -250,7 +251,7 @@ def import_books(
             file_path = file if file is not None else "books.csv"
             with open(file_path) as books_file:
                 reader = csv.DictReader(books_file)
-                for row in reader:
+                for row in track(reader, description="Importing..."):
                     author_name = row["author"]
                     author = author_repo.get_by_name(session, author_name)
                     if author is None:
