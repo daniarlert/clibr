@@ -13,7 +13,7 @@ from typing_extensions import Annotated
 
 import config
 from models import Quote, Author, Book
-from repositories import AuthorRepository, BookRepository, QuoteRepository
+from repositories import AuthorRepository, BookRepository, QuoteRepository, QuoteOrder
 
 app = typer.Typer()
 cfg = config.Config()
@@ -107,6 +107,19 @@ def list_quotes(
             is_flag=True,
         ),
     ] = None,
+    order_by: Annotated[
+        QuoteOrder,
+        typer.Option(
+            "--order-by",
+        ),
+    ] = QuoteOrder.quote.value,
+    reverse_order: Annotated[
+        bool,
+        typer.Option(
+            "--reverse",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     quote_repo = QuoteRepository()
     author_repo = AuthorRepository()
@@ -143,6 +156,8 @@ def list_quotes(
                 book_id=book_id,
                 author_id=author_id,
                 fav=quote_fav,
+                order_by=order_by,
+                reverse_order=reverse_order,
             )
 
             if not len(results):
@@ -153,7 +168,7 @@ def list_quotes(
 
             table = Table(title="Quotes", show_lines=True)
             table.add_column("Book", style="bold")
-            table.add_column("Quote", overflow=None)
+            table.add_column("Quote", overflow="ignore")
             table.add_column("Author")
             table.add_column("Favourite")
 

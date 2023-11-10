@@ -1,9 +1,11 @@
-from sqlmodel import Session, or_, select
-from typing_extensions import Optional
+from typing import Optional
+
+from sqlmodel import Session, or_, select, desc
 
 from models import Author, Book, BookAuthorLink, Quote
 
 from .base_repository import BaseRepository
+from .enums import QuoteOrder
 
 
 class QuoteRepository(BaseRepository):
@@ -24,7 +26,6 @@ class QuoteRepository(BaseRepository):
 
         original_quote.quote = quote.quote
 
-    # TODO: add order_by
     def list(
         self,
         session: Session,
@@ -32,6 +33,8 @@ class QuoteRepository(BaseRepository):
         book_id: Optional[int] = None,
         author_id: Optional[int] = None,
         fav: Optional[bool] = None,
+        order_by: Optional[QuoteOrder] = QuoteOrder.quote,
+        reverse_order: Optional[bool] = False,
     ) -> list[Quote]:
         stmt = select(
             self.model_type,
@@ -58,6 +61,18 @@ class QuoteRepository(BaseRepository):
 
         if fav is not None:
             stmt = stmt.where(self.model_type.fav == fav)
+
+        order_column = self.model_type.quote
+        if order_by == QuoteOrder.author:
+            order_column = Author.name
+        elif order_by == QuoteOrder.book:
+            order_column = Book.title
+
+        stmt = (
+            stmt.order_by(desc(order_column))
+            if reverse_order
+            else stmt.order_by(order_column)
+        )
 
         result = session.exec(stmt)
         return result.all()

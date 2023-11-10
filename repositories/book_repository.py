@@ -1,10 +1,11 @@
 from typing import Optional
 
-from sqlmodel import Session, or_, select
+from sqlmodel import Session, or_, select, desc
 
 from models import Author, Book, BookAuthorLink, BookStatus
 
 from .base_repository import BaseRepository
+from .enums import BookOrder
 
 
 class BookRepository(BaseRepository):
@@ -27,7 +28,6 @@ class BookRepository(BaseRepository):
         stmt = select(self.model_type).where(self.model_type.title == title)
         return session.exec(stmt).first()
 
-    # TODO: add order_by
     def list(
         self,
         session: Session,
@@ -35,6 +35,8 @@ class BookRepository(BaseRepository):
         author_id: Optional[int] = None,
         status: Optional[BookStatus] = None,
         fav: Optional[bool] = None,
+        order_by: Optional[BookOrder] = BookOrder.title,
+        reverse_order: bool = False,
     ) -> list[Book] | None:
         stmt = select(self.model_type, Author)
 
@@ -55,6 +57,16 @@ class BookRepository(BaseRepository):
 
         stmt = stmt.join(BookAuthorLink, self.model_type.id == BookAuthorLink.book_id)
         stmt = stmt.join(Author, Author.id == BookAuthorLink.author_id)
+
+        order_column = self.model_type.title
+        if order_by == BookOrder.author:
+            order_column = Author.name
+
+        stmt = (
+            stmt.order_by(desc(order_column))
+            if reverse_order
+            else stmt.order_by(order_column)
+        )
 
         results = session.exec(stmt)
         books = results.all()

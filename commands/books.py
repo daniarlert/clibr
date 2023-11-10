@@ -14,6 +14,7 @@ from typing_extensions import Annotated
 import config
 from models import Author, Book, BookStatus
 from repositories import AuthorRepository, BookRepository
+from repositories.enums import BookOrder
 
 app = typer.Typer()
 cfg = config.Config()
@@ -37,7 +38,7 @@ def add_book(
             "-s",
             show_choices=True,
         ),
-    ] = BookStatus.pending,
+    ] = BookStatus.pending.value,
     book_fav: Annotated[
         bool,
         typer.Option(
@@ -104,6 +105,20 @@ def list_books(
             is_flag=True,
         ),
     ] = None,
+    order_by: Annotated[
+        BookOrder,
+        typer.Option(
+            "--order-by",
+            show_choices=True,
+        ),
+    ] = BookOrder.title.value,
+    reverse_order: Annotated[
+        bool,
+        typer.Option(
+            "--reverse",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     book_repo = BookRepository()
     author_repo = AuthorRepository()
@@ -127,6 +142,8 @@ def list_books(
                 author_id=author_id,
                 status=book_status,
                 fav=book_fav,
+                order_by=order_by,
+                reverse_order=reverse_order,
             )
             if not len(results):
                 err_console.print(
