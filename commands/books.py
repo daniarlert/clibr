@@ -125,6 +125,13 @@ def list_books(
             "--limit",
         ),
     ] = None,
+    raw: Annotated[
+        bool,
+        typer.Option(
+            "--raw",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     book_repo = BookRepository()
     author_repo = AuthorRepository()
@@ -158,21 +165,28 @@ def list_books(
                 )
                 return
 
-            table = Table(title="Books", show_lines=True)
-            table.add_column("Title", style="bold")
-            table.add_column("Author")
-            table.add_column("Status")
-            table.add_column("Favourite")
+            if raw:
+                print("[bold]id, title, author, status, fav")
+                for result in results:
+                    print(f"{result['Book'].id}, \"{result['Book'].title}\", {result['Author'].name}, {result['Book'].status}, {"Yes" if result['Book'].fav else "No"}")
+            else:
+                table = Table(title="Books", show_lines=True)
+                table.add_column("ID", style="bold", justify="center")
+                table.add_column("Title", style="bold")
+                table.add_column("Author")
+                table.add_column("Status")
+                table.add_column("Favourite", justify="center")
 
-            for result in results:
-                table.add_row(
-                    result["Book"].title.title(),
-                    result["Author"].name,
-                    result["Book"].status.capitalize(),
-                    "Yes" if result["Book"].fav else "No",
-                )
+                for result in results:
+                    table.add_row(
+                        f"{result['Book'].id}",
+                        result["Book"].title.title(),
+                        result["Author"].name,
+                        result["Book"].status.capitalize(),
+                        "Yes" if result["Book"].fav else "No",
+                    )
 
-            print(table)
+                print(table)
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong!")

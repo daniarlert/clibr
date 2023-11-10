@@ -68,6 +68,8 @@ class QuoteRepository(BaseRepository):
             order_column = Author.name
         elif order_by == QuoteOrder.book:
             order_column = Book.title
+        elif order_by == QuoteOrder.id:
+            order_column = self.model_type.id
 
         stmt = (
             stmt.order_by(desc(order_column))

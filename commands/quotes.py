@@ -126,6 +126,13 @@ def list_quotes(
             "--limit",
         ),
     ] = None,
+    raw: Annotated[
+        bool,
+        typer.Option(
+            "--raw",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     quote_repo = QuoteRepository()
     author_repo = AuthorRepository()
@@ -173,21 +180,28 @@ def list_quotes(
                 )
                 return
 
-            table = Table(title="Quotes", show_lines=True)
-            table.add_column("Book", style="bold")
-            table.add_column("Quote", overflow="ignore")
-            table.add_column("Author")
-            table.add_column("Favourite")
+            if raw:
+                print("[bold]id, book, quote, author, fav")
+                for result in results:
+                    print(f"{result['Quote'].id}, {result['Book'].title}, \"{result['Quote'].quote}\", {result['Author'].name}, {"Yes" if result['Quote'].fav else "No"}")
+            else:
+                table = Table(title="Quotes", show_lines=True)
+                table.add_column("ID", style="bold", justify="center")
+                table.add_column("Book", style="bold")
+                table.add_column("Quote", overflow="ignore")
+                table.add_column("Author")
+                table.add_column("Favourite", justify="center")
 
-            for result in results:
-                table.add_row(
-                    result["Book"].title.title(),
-                    result["Quote"].quote,
-                    result["Author"].name,
-                    "Yes" if result["Quote"].fav else "No",
-                )
+                for result in results:
+                    table.add_row(
+                        f"{result['Quote'].id}",
+                        result["Book"].title.title(),
+                        result["Quote"].quote,
+                        result["Author"].name,
+                        "Yes" if result["Quote"].fav else "No",
+                    )
 
-            print(table)
+                print(table)
 
         except SQLAlchemyError:
             err_console.print(
