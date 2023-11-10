@@ -35,6 +35,7 @@ class QuoteRepository(BaseRepository):
         fav: Optional[bool] = None,
         order_by: Optional[QuoteOrder] = QuoteOrder.quote,
         reverse_order: Optional[bool] = False,
+        limit: Optional[int] = None,
     ) -> list[Quote]:
         stmt = select(
             self.model_type,
@@ -73,6 +74,9 @@ class QuoteRepository(BaseRepository):
             if reverse_order
             else stmt.order_by(order_column)
         )
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
 
         result = session.exec(stmt)
         return result.all()

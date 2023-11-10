@@ -119,6 +119,12 @@ def list_books(
             is_flag=True,
         ),
     ] = False,
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+        ),
+    ] = None,
 ):
     book_repo = BookRepository()
     author_repo = AuthorRepository()
@@ -144,6 +150,7 @@ def list_books(
                 fav=book_fav,
                 order_by=order_by,
                 reverse_order=reverse_order,
+                limit=limit,
             )
             if not len(results):
                 err_console.print(

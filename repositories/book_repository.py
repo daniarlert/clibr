@@ -37,6 +37,7 @@ class BookRepository(BaseRepository):
         fav: Optional[bool] = None,
         order_by: Optional[BookOrder] = BookOrder.title,
         reverse_order: bool = False,
+        limit: Optional[int] = None,
     ) -> list[Book] | None:
         stmt = select(self.model_type, Author)
 
@@ -67,6 +68,9 @@ class BookRepository(BaseRepository):
             if reverse_order
             else stmt.order_by(order_column)
         )
+
+        if limit is not None:
+            stmt = stmt.limit(limit)
 
         results = session.exec(stmt)
         books = results.all()

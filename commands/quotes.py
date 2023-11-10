@@ -120,6 +120,12 @@ def list_quotes(
             is_flag=True,
         ),
     ] = False,
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+        ),
+    ] = None,
 ):
     quote_repo = QuoteRepository()
     author_repo = AuthorRepository()
@@ -158,6 +164,7 @@ def list_quotes(
                 fav=quote_fav,
                 order_by=order_by,
                 reverse_order=reverse_order,
+                limit=limit,
             )
 
             if not len(results):
