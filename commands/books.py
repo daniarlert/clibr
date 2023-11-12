@@ -30,6 +30,12 @@ def print_raw_output(results: list[dict]) -> None:
 
 
 def print_formatted_output(table: Table, results: list[dict]) -> None:
+    table.add_column("ID", style="bold", justify="center")
+    table.add_column("Title", style="bold")
+    table.add_column("Author")
+    table.add_column("Status", justify="center")
+    table.add_column("Favourite", justify="center")
+
     for result in results:
         table.add_row(
             f"{result['Book'].id}",
