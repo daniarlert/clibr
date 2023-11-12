@@ -20,7 +20,37 @@ cfg = config.Config()
 err_console = Console(stderr=True)
 
 
-@app.command("add")
+def print_raw_output(results: list[dict]) -> None:
+    print("[bold]id, book, quote, author, fav")
+    for result in results:
+        print(
+            f"{result['Quote'].id}, \"{result['Book'].title}\", \"{result['Quote'].quote}\", {result['Author'].name}, {'Yes' if result['Quote'].fav else 'No'}"
+        )
+
+
+def print_formatted_output(table: Table, results: list[dict]) -> None:
+    table.add_column("ID", style="bold", justify="center")
+    table.add_column("Book", style="bold")
+    table.add_column("Quote", overflow="ignore")
+    table.add_column("Author")
+    table.add_column("Favourite", justify="center")
+
+    for result in results:
+        table.add_row(
+            f"{result['Quote'].id}",
+            result["Book"].title.title(),
+            result["Quote"].quote,
+            result["Author"].name,
+            "Yes" if result["Quote"].fav else "No",
+        )
+
+    print(table)
+
+
+@app.command(
+    "add",
+    help="Add a new quote",
+)
 def add_quote(
     text: Annotated[
         str,
@@ -28,11 +58,17 @@ def add_quote(
             "--quote",
             "-q",
             prompt="Quote",
+            help="Quote",
         ),
     ],
     book_title: Annotated[
         str,
-        typer.Option("--title", "-t", prompt="Book title"),
+        typer.Option(
+            "--title",
+            "-t",
+            prompt="Title of the book",
+            help="Title of the book",
+        ),
     ],
     quote_fav: Annotated[
         bool,
@@ -40,6 +76,7 @@ def add_quote(
             "--fav",
             "-f",
             is_flag=True,
+            help="Indicate whether the quote is a favorite",
         ),
     ] = False,
 ):
@@ -52,7 +89,7 @@ def add_quote(
             book = book_repo.get_by_title(session, book_title)
             if book is None:
                 err_console.print(
-                    f"Oops, the book '{book_title}' isn't in the library yet!"
+                    f'Oops, the book "{book_title}" isn\'t in the library yet!'
                 )
                 return
 
@@ -73,14 +110,17 @@ def add_quote(
             session.rollback()
 
 
-@app.command("list")
+@app.command(
+    "list",
+    help="List quotes with the option to filter by keywords, author, book or favorites",
+)
 def list_quotes(
     words_in_quote: Annotated[
         list[str],
         typer.Option(
             "--words",
             "-w",
-            help="Words in quote",
+            help="List of words to filter quotes by content",
         ),
     ] = None,
     book_title: Annotated[
@@ -88,7 +128,7 @@ def list_quotes(
         typer.Option(
             "--title",
             "-t",
-            help="Book title",
+            help="Title of the book to filter by",
         ),
     ] = None,
     book_author: Annotated[
@@ -96,7 +136,7 @@ def list_quotes(
         typer.Option(
             "--author",
             "-a",
-            help="Author name",
+            help="Name of the author to filter by",
         ),
     ] = None,
     quote_fav: Annotated[
@@ -105,12 +145,14 @@ def list_quotes(
             "--fav",
             "-f",
             is_flag=True,
+            help="Filter books by whether they are favorites or not",
         ),
     ] = None,
     order_by: Annotated[
         QuoteOrder,
         typer.Option(
             "--order-by",
+            help="Specify the order in which results are displayed",
         ),
     ] = QuoteOrder.quote.value,
     reverse_order: Annotated[
@@ -118,12 +160,14 @@ def list_quotes(
         typer.Option(
             "--reverse",
             is_flag=True,
+            help="Reverse the order of the results",
         ),
     ] = False,
     limit: Annotated[
         int,
         typer.Option(
             "--limit",
+            help="Limit the number of results displayed",
         ),
     ] = None,
     raw: Annotated[
@@ -131,6 +175,7 @@ def list_quotes(
         typer.Option(
             "--raw",
             is_flag=True,
+            help="Display raw output without formatting",
         ),
     ] = False,
 ):
@@ -181,27 +226,10 @@ def list_quotes(
                 return
 
             if raw:
-                print("[bold]id, book, quote, author, fav")
-                for result in results:
-                    print(f"{result['Quote'].id}, {result['Book'].title}, \"{result['Quote'].quote}\", {result['Author'].name}, {"Yes" if result['Quote'].fav else "No"}")
+                print_raw_output(results)
             else:
                 table = Table(title="Quotes", show_lines=True)
-                table.add_column("ID", style="bold", justify="center")
-                table.add_column("Book", style="bold")
-                table.add_column("Quote", overflow="ignore")
-                table.add_column("Author")
-                table.add_column("Favourite", justify="center")
-
-                for result in results:
-                    table.add_row(
-                        f"{result['Quote'].id}",
-                        result["Book"].title.title(),
-                        result["Quote"].quote,
-                        result["Author"].name,
-                        "Yes" if result["Quote"].fav else "No",
-                    )
-
-                print(table)
+                print_formatted_output(table, results)
 
         except SQLAlchemyError:
             err_console.print(
@@ -209,11 +237,19 @@ def list_quotes(
             )
 
 
-@app.command("delete")
+@app.command(
+    "delete",
+    help="Delete a quote",
+)
 def delete_quote(
     quote: Annotated[
         str,
-        typer.Option("--quote", "-q", prompt="Quote"),
+        typer.Option(
+            "--quote",
+            "-q",
+            prompt="Quote",
+            help="Quote to delete",
+        ),
     ],
 ):
     typer.confirm(
@@ -238,13 +274,16 @@ def delete_quote(
             session.rollback()
 
 
-@app.command("export")
+@app.command(
+    "export",
+    help="Export your quotes into a CSV file",
+)
 def export_quotes(
     file: Annotated[
         Optional[Path],
         typer.Option(
             "--path",
-            help="file path",
+            help="Optional path to the file where the quotes will be exported as a .csv",
         ),
     ] = None,
 ) -> None:
@@ -283,13 +322,16 @@ def export_quotes(
             err_console.print("Oops, something went wrong! Export couldn't be made")
 
 
-@app.command("import")
+@app.command(
+    "import",
+    help="Import your quotes from a CSV file",
+)
 def import_quotes(
     file: Annotated[
         Optional[Path],
         typer.Option(
             "--path",
-            help="file path",
+            help="Optional path to the file from which quotes will be imported",
         ),
     ] = None,
 ) -> None:

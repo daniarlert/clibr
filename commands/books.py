@@ -21,15 +21,49 @@ cfg = config.Config()
 err_console = Console(stderr=True)
 
 
-@app.command("add")
+def print_raw_output(results: list[dict]) -> None:
+    print("[bold]id, title, author, status, fav")
+    for result in results:
+        print(
+            f"{result['Book'].id}, \"{result['Book'].title}\", {result['Author'].name}, {result['Book'].status}, {'Yes' if result['Book'].fav else 'No'}"
+        )
+
+
+def print_formatted_output(table: Table, results: list[dict]) -> None:
+    for result in results:
+        table.add_row(
+            f"{result['Book'].id}",
+            result["Book"].title.title(),
+            result["Author"].name,
+            result["Book"].status.capitalize(),
+            "Yes" if result["Book"].fav else "No",
+        )
+
+    print(table)
+
+
+@app.command(
+    "add",
+    help="Add a new book to your library",
+)
 def add_book(
     book_title: Annotated[
         str,
-        typer.Option("--title", "-t", prompt="Book title"),
+        typer.Option(
+            "--title",
+            "-t",
+            prompt="Title of the book",
+            help="Title of the book",
+        ),
     ],
     book_author: Annotated[
         str,
-        typer.Option("--author", "-a", prompt="Author name"),
+        typer.Option(
+            "--author",
+            "-a",
+            prompt="Name of the author",
+            help="Name of the author",
+        ),
     ],
     book_status: Annotated[
         BookStatus,
@@ -37,6 +71,7 @@ def add_book(
             "--status",
             "-s",
             show_choices=True,
+            help="Status of the book",
         ),
     ] = BookStatus.pending.value,
     book_fav: Annotated[
@@ -45,11 +80,12 @@ def add_book(
             "--fav",
             "-f",
             is_flag=True,
+            help="Indicate whether the book is a favorite",
         ),
     ] = False,
 ):
-    book_repo = BookRepository()
     author_repo = AuthorRepository()
+    book_repo = BookRepository()
     engine = cfg.DB_ENGINE
 
     with Session(engine) as session:
@@ -58,18 +94,21 @@ def add_book(
             if author is None:
                 author = Author(name=book_author)
                 author_repo.add(session, author)
+
                 print(f"{author} is now in the collection")
 
             book = book_repo.get_by_title(session, book_title)
             if book is None:
                 book = Book(
                     title=book_title,
-                    authors=[author],
+                    authors=[book_author],
                     status=book_status,
                     fav=book_fav,
                 )
                 book_repo.add(session, book)
-                print(f"adding '{book_title}' by {author.name} to the library")
+                print(f"Added '{book_title}' by {book_author.name} to the library")
+            else:
+                print(f'Book "{book_title}" is already in the library')
 
             session.commit()
         except SQLAlchemyError:
@@ -79,23 +118,34 @@ def add_book(
             session.rollback()
 
 
-@app.command("list")
+@app.command(
+    "list",
+    help="List books with the option to filter by keywords, author name, status or favorites",
+)
 def list_books(
     words_in_title: Annotated[
         list[str],
         typer.Option(
             "--words",
             "-w",
-            help="Words in title",
+            help="List of words to filter books by title",
         ),
     ] = None,
     book_author: Annotated[
         str,
-        typer.Option("--author", "-a"),
+        typer.Option(
+            "--author",
+            "-a",
+            help="Name of the author to filter by",
+        ),
     ] = None,
     book_status: Annotated[
         BookStatus,
-        typer.Option("--status", "-s"),
+        typer.Option(
+            "--status",
+            "-s",
+            help="Status of the books to filter by",
+        ),
     ] = None,
     book_fav: Annotated[
         bool,
@@ -103,6 +153,7 @@ def list_books(
             "--fav",
             "-f",
             is_flag=True,
+            help="Filter books by whether they are favorites or not",
         ),
     ] = None,
     order_by: Annotated[
@@ -110,6 +161,7 @@ def list_books(
         typer.Option(
             "--order-by",
             show_choices=True,
+            help="Specify the order in which results are displayed",
         ),
     ] = BookOrder.title.value,
     reverse_order: Annotated[
@@ -117,12 +169,14 @@ def list_books(
         typer.Option(
             "--reverse",
             is_flag=True,
+            help="Reverse the order of the results",
         ),
     ] = False,
     limit: Annotated[
         int,
         typer.Option(
             "--limit",
+            help="Limit the number of results displayed",
         ),
     ] = None,
     raw: Annotated[
@@ -130,6 +184,7 @@ def list_books(
         typer.Option(
             "--raw",
             is_flag=True,
+            help="Display raw output without formatting",
         ),
     ] = False,
 ):
@@ -166,40 +221,27 @@ def list_books(
                 return
 
             if raw:
-                print("[bold]id, title, author, status, fav")
-                for result in results:
-                    print(f"{result['Book'].id}, \"{result['Book'].title}\", {result['Author'].name}, {result['Book'].status}, {"Yes" if result['Book'].fav else "No"}")
+                print_raw_output(results)
             else:
                 table = Table(title="Books", show_lines=True)
-                table.add_column("ID", style="bold", justify="center")
-                table.add_column("Title", style="bold")
-                table.add_column("Author")
-                table.add_column("Status")
-                table.add_column("Favourite", justify="center")
-
-                for result in results:
-                    table.add_row(
-                        f"{result['Book'].id}",
-                        result["Book"].title.title(),
-                        result["Author"].name,
-                        result["Book"].status.capitalize(),
-                        "Yes" if result["Book"].fav else "No",
-                    )
-
-                print(table)
+                print_formatted_output(table, results)
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong!")
 
 
-@app.command("delete")
+@app.command(
+    "delete",
+    help="Delete a book form your library",
+)
 def delete_book(
     book_title: Annotated[
         str,
         typer.Option(
             "--title",
             "-t",
-            prompt="Book title",
+            prompt="Title of the book",
+            help="Title of the book",
         ),
     ],
 ):
@@ -225,13 +267,16 @@ def delete_book(
             session.rollback()
 
 
-@app.command("export")
+@app.command(
+    "export",
+    help="Export your library into a CSV file",
+)
 def export_books(
     file: Annotated[
         Optional[Path],
         typer.Option(
             "--path",
-            help="file path",
+            help="Optional path to the file where the books will be exported as a .csv",
         ),
     ] = None,
 ) -> None:
@@ -268,15 +313,19 @@ def export_books(
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Export couldn't be made")
+            session.rollback()
 
 
-@app.command("import")
+@app.command(
+    "import",
+    help="Import books into you library from a CSV file",
+)
 def import_books(
     file: Annotated[
         Optional[Path],
         typer.Option(
             "--path",
-            help="file path",
+            help="Optional path to the file from which books will be imported",
         ),
     ] = None,
 ) -> None:
@@ -313,6 +362,7 @@ def import_books(
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Import failed")
+            session.rollback()
 
 
 if __name__ == "__main__":
