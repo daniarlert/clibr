@@ -24,6 +24,8 @@ class Config:
             self.APP_VERSIOn = poetry["version"]
             self.APP_SHORT_DESCRIPTION = poetry["description"]
 
+        self.DEBUG = False
+
         self.APP_DIR = typer.get_app_dir(self.APP_NAME)
         self.DB_PATH: Path = Path(self.APP_DIR) / "clibr.db"
         Path(self.APP_DIR).mkdir(parents=True, exist_ok=True)
