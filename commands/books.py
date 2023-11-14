@@ -3,49 +3,23 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich import print
+from rich import print as pprint
 from rich.console import Console
 from rich.progress import track
-from rich.table import Table
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from typing_extensions import Annotated
 
 import config
-from models import Author, Book, BookStatus
+from models import BookStatus
 from repositories import AuthorRepository, BookRepository
 from repositories.enums import BookOrder
+from .utils import get_or_create_author, get_or_create_book
+from .print import print_raw_books_output, print_formatted_books_output
 
 app = typer.Typer()
 cfg = config.Config()
 err_console = Console(stderr=True)
-
-
-def print_raw_output(results: list[dict]) -> None:
-    print("[bold]id, title, author, status, fav")
-    for result in results:
-        print(
-            f"{result['Book'].id}, \"{result['Book'].title}\", {result['Author'].name}, {result['Book'].status}, {'Yes' if result['Book'].fav else 'No'}"
-        )
-
-
-def print_formatted_output(table: Table, results: list[dict]) -> None:
-    table.add_column("ID", style="bold", justify="center")
-    table.add_column("Title", style="bold")
-    table.add_column("Author")
-    table.add_column("Status", justify="center")
-    table.add_column("Favourite", justify="center")
-
-    for result in results:
-        table.add_row(
-            f"{result['Book'].id}",
-            result["Book"].title.title(),
-            result["Author"].name,
-            result["Book"].status.capitalize(),
-            "Yes" if result["Book"].fav else "No",
-        )
-
-    print(table)
 
 
 @app.command(
@@ -90,37 +64,97 @@ def add_book(
         ),
     ] = False,
 ):
-    author_repo = AuthorRepository()
-    book_repo = BookRepository()
     engine = cfg.DB_ENGINE
 
     with Session(engine) as session:
         try:
-            author = author_repo.get_by_name(session, book_author)
-            if author is None:
-                author = Author(name=book_author)
-                author_repo.add(session, author)
-
-                print(f"{author} is now in the collection")
-
-            book = book_repo.get_by_title(session, book_title)
-            if book is None:
-                book = Book(
-                    title=book_title,
-                    authors=[book_author],
-                    status=book_status,
-                    fav=book_fav,
-                )
-                book_repo.add(session, book)
-                print(f"Added '{book_title}' by {book_author.name} to the library")
-            else:
-                print(f'Book "{book_title}" is already in the library')
-
+            author = get_or_create_author(session, book_author)
+            get_or_create_book(session, book_title, author, book_status, book_fav)
             session.commit()
         except SQLAlchemyError:
             err_console.print(
                 "Oops, something went wrong! Changes have been rolled back"
             )
+            session.rollback()
+
+
+@app.command(
+    "update",
+    help="Update a book in your library",
+)
+def update_book(
+    book_id: Annotated[
+        int,
+        typer.Option(
+            "--id",
+            help="ID of the book to update",
+        ),
+    ],
+    new_title: Annotated[
+        str,
+        typer.Option(
+            "--title",
+            "-t",
+            help="New title of the book",
+        ),
+    ] = None,
+    new_status: Annotated[
+        BookStatus,
+        typer.Option(
+            "--status",
+            "-s",
+            help="New book status",
+        ),
+    ] = None,
+    mark_as_fav: Annotated[
+        bool,
+        typer.Option(
+            "--fav",
+            "-f",
+            is_flag=True,
+            help="Indicate whether the book is a favorite",
+        ),
+    ] = None,
+    unmark_as_fav: Annotated[
+        bool,
+        typer.Option(
+            "--unfav",
+            is_flag=True,
+            help="Unmarks the book as a favorite",
+        ),
+    ] = None,
+):
+    book_repo = BookRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            original_book = book_repo.get_by_id(session, book_id)
+            if original_book is None:
+                pprint(f"No book found with received ID {book_id}")
+                return
+
+            if (
+                new_title is None
+                and new_status is None
+                and mark_as_fav is None
+                and unmark_as_fav is None
+            ):
+                pprint(
+                    "There are no attributes marked to update. The book hasn't been updated"
+                )
+                return
+
+            new_fav = mark_as_fav if mark_as_fav else False if unmark_as_fav else None
+            book_repo.update(session, book_id, new_title, new_status, new_fav)
+            session.commit()
+        except SQLAlchemyError as e:
+            err_console.print(
+                "Oops, something went wrong! The book couldn't be updated"
+            )
+            if cfg.DEBUG:
+                err_console.print(e)
+
             session.rollback()
 
 
@@ -227,10 +261,9 @@ def list_books(
                 return
 
             if raw:
-                print_raw_output(results)
+                print_raw_books_output(results)
             else:
-                table = Table(title="Books", show_lines=True)
-                print_formatted_output(table, results)
+                print_formatted_books_output(results)
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong!")
@@ -241,30 +274,24 @@ def list_books(
     help="Delete a book form your library",
 )
 def delete_book(
-    book_title: Annotated[
-        str,
+    book_id: Annotated[
+        int,
         typer.Option(
-            "--title",
-            "-t",
-            prompt="Title of the book",
-            help="Title of the book",
+            "--id",
+            prompt="ID of the book",
+            help="ID of the book",
         ),
     ],
 ):
     typer.confirm(
-        f"Are you sure you want to delete the book '{book_title}'?",
+        f"Are you sure you want to delete the book with ID '{book_id}'?",
         abort=True,
     )
 
-    book_repo = BookRepository()
     engine = cfg.DB_ENGINE
     with Session(engine) as session:
         try:
-            book = book_repo.get_by_title(session, book_title)
-            if book is None:
-                return
-
-            book_repo.delete(session, book.id)
+            BookRepository().delete(session, book_id)
             session.commit()
         except SQLAlchemyError:
             err_console.print(
@@ -315,7 +342,7 @@ def export_books(
                         }
                     )
 
-                print("CSV file has been successfully created")
+                pprint("CSV file has been successfully created")
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Export couldn't be made")
@@ -335,8 +362,6 @@ def import_books(
         ),
     ] = None,
 ) -> None:
-    book_repo = BookRepository()
-    author_repo = AuthorRepository()
     engine = cfg.DB_ENGINE
 
     with Session(engine) as session:
@@ -346,25 +371,18 @@ def import_books(
                 reader = csv.DictReader(books_file)
                 for row in track(reader, description="Importing..."):
                     author_name = row["author"]
-                    author = author_repo.get_by_name(session, author_name)
-                    if author is None:
-                        author = Author(name=author_name)
-                        author_repo.add(session, author)
-
-                    book_title = row["title"]
-                    book = book_repo.get_by_title(session, book_title)
-                    if book is None:
-                        book = Book(
-                            title=book_title,
-                            authors=[author],
-                            status=row["status"],
-                            fav=True if row["fav"] == "Yes" else False,
-                        )
-                        book_repo.add(session, book)
+                    author = get_or_create_author(session, author_name)
+                    get_or_create_book(
+                        session,
+                        row["title"],
+                        author,
+                        row["status"],
+                        True if row["fav"] == "Yes" else False,
+                    )
 
                     session.commit()
 
-                print("Import has been successful!")
+                pprint("Import has been successful!")
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Import failed")

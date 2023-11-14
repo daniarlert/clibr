@@ -1,4 +1,3 @@
-from audioop import add
 from sqlmodel import Session, select
 
 from models import Book, BookStatus
@@ -24,8 +23,7 @@ def test_book_repository_update(session: Session):
     book = add_book(session, "elantris", author)
     session.commit()
 
-    book.title = "Elantris"
-    book_repo.update(session, book)
+    book_repo.update(session, book.id, new_title="Elantris")
 
     stmt = select(Book).where(Book.title == "Elantris")
     result = session.exec(stmt).first()

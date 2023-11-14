@@ -12,12 +12,13 @@ class AuthorRepository(BaseRepository):
     def add(self, session: Session, author: Author) -> None:
         session.add(author)
 
-    def update(self, session: Session, author: Author) -> None:
-        stmt = select(self.model_type).where(self.model_type.id == author.id)
+    def update(self, session: Session, id: int, new_name: str) -> None:
+        stmt = select(self.model_type).where(self.model_type.id == id)
         results = session.exec(stmt)
         original_author = results.one()
 
-        original_author.name = author.name
+        if original_author.name != new_name:
+            original_author.name = new_name
 
     def get_by_name(self, session: Session, name: str) -> Author | None:
         stmt = select(self.model_type).where(self.model_type.name == name)

@@ -3,48 +3,26 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from rich import print
+from rich import print as pprint
 from rich.console import Console
 from rich.progress import track
-from rich.table import Table
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from typing_extensions import Annotated
 
 import config
 from models import Quote, Author, Book
-from repositories import AuthorRepository, BookRepository, QuoteRepository, QuoteOrder
+from repositories import (
+    AuthorRepository,
+    BookRepository,
+    QuoteRepository,
+    QuoteOrder,
+)
+from .print import print_raw_quotes_output, print_formatted_quotes_output
 
 app = typer.Typer()
 cfg = config.Config()
 err_console = Console(stderr=True)
-
-
-def print_raw_output(results: list[dict]) -> None:
-    print("[bold]id, book, quote, author, fav")
-    for result in results:
-        print(
-            f"{result['Quote'].id}, \"{result['Book'].title}\", \"{result['Quote'].quote}\", {result['Author'].name}, {'Yes' if result['Quote'].fav else 'No'}"
-        )
-
-
-def print_formatted_output(table: Table, results: list[dict]) -> None:
-    table.add_column("ID", style="bold", justify="center")
-    table.add_column("Book", style="bold")
-    table.add_column("Quote", overflow="ignore")
-    table.add_column("Author")
-    table.add_column("Favourite", justify="center")
-
-    for result in results:
-        table.add_row(
-            f"{result['Quote'].id}",
-            result["Book"].title.title(),
-            result["Quote"].quote,
-            result["Author"].name,
-            "Yes" if result["Quote"].fav else "No",
-        )
-
-    print(table)
 
 
 @app.command(
@@ -107,6 +85,97 @@ def add_quote(
             err_console.print(
                 "Oops, something went wrong! Changes have been rolled back"
             )
+            session.rollback()
+
+
+@app.command(
+    "update",
+    help="Update a quote",
+)
+def update(
+    quote_id: Annotated[
+        int,
+        typer.Option(
+            "--id",
+            help="ID of the quote to update",
+        ),
+    ],
+    new_text: Annotated[
+        str,
+        typer.Option(
+            "--quote",
+            "-q",
+            help="New text for the quote",
+        ),
+    ] = None,
+    new_book_title: Annotated[
+        str,
+        typer.Option(
+            "--title",
+            "-t",
+            help="Title of the book",
+        ),
+    ] = None,
+    mark_as_fav: Annotated[
+        bool,
+        typer.Option(
+            "--fav",
+            "-f",
+            is_flag=True,
+            help="Indicate whether the quote is a favorite",
+        ),
+    ] = None,
+    unmark_as_fav: Annotated[
+        bool,
+        typer.Option(
+            "--unfav",
+            is_flag=True,
+            help="Unmarks the quote as a favorite",
+        ),
+    ] = None,
+):
+    book_repo = BookRepository()
+    quote_repo = QuoteRepository()
+    engine = cfg.DB_ENGINE
+
+    with Session(engine) as session:
+        try:
+            original_quote = quote_repo.get_by_id(session, quote_id)
+            if original_quote is None:
+                pprint(f"No quote found with received ID {quote_id}")
+                return
+            if (
+                new_text is None
+                and new_book_title is None
+                and mark_as_fav is None
+                and unmark_as_fav is None
+            ):
+                pprint(
+                    "There are no attributes marked to update. The quote hasn't been updated"
+                )
+                return
+
+            new_book = None
+            if new_book_title:
+                book_repo.get_by_title(session, new_book_title)
+                if new_book is None:
+                    err_console.print(
+                        f'The book "{new_book_title}" was not found',
+                    )
+                    return
+
+            new_fav = mark_as_fav if mark_as_fav else False if unmark_as_fav else None
+            quote_repo.update(session, quote_id, new_text, new_book, new_fav)
+
+            session.commit()
+
+        except SQLAlchemyError as e:
+            err_console.print(
+                "Oops, something went wrong! The quote couldn't be updated"
+            )
+            if cfg.DEBUG:
+                err_console.print(e)
+
             session.rollback()
 
 
@@ -226,10 +295,9 @@ def list_quotes(
                 return
 
             if raw:
-                print_raw_output(results)
+                print_raw_quotes_output(results)
             else:
-                table = Table(title="Quotes", show_lines=True)
-                print_formatted_output(table, results)
+                print_formatted_quotes_output(results)
 
         except SQLAlchemyError:
             err_console.print(
@@ -242,30 +310,24 @@ def list_quotes(
     help="Delete a quote",
 )
 def delete_quote(
-    quote: Annotated[
-        str,
+    quote_id: Annotated[
+        int,
         typer.Option(
-            "--quote",
-            "-q",
-            prompt="Quote",
-            help="Quote to delete",
+            "--id",
+            prompt="Quote ID",
+            help="ID of the quote to delete",
         ),
     ],
 ):
     typer.confirm(
-        "Are you sure you want to delete this quote?",
+        "Are you sure you want to delete the quote with id '{quote_id}'?",
         abort=True,
     )
 
-    quote_repo = QuoteRepository()
     engine = cfg.DB_ENGINE
     with Session(engine) as session:
         try:
-            quote = quote_repo.get_by_quote(session, quote)
-            if quote is None:
-                return
-
-            quote_repo.delete(session, quote.id)
+            QuoteRepository().delete(session, quote_id)
             session.commit()
         except SQLAlchemyError:
             err_console.print(
@@ -316,7 +378,7 @@ def export_quotes(
                         }
                     )
 
-                print("CSV file has been successfully created")
+                pprint("CSV file has been successfully created")
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Export couldn't be made")
@@ -374,7 +436,7 @@ def import_quotes(
 
                     session.commit()
 
-                print("Import has been successful!")
+                pprint("Import has been successful!")
 
         except SQLAlchemyError:
             err_console.print("Oops, something went wrong! Import failed")

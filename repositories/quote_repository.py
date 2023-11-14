@@ -19,12 +19,27 @@ class QuoteRepository(BaseRepository):
     def add(self, session: Session, quote: Quote) -> None:
         session.add(quote)
 
-    def update(self, session: Session, quote: Quote) -> None:
-        stmt = select(self.model_type).where(self.model_type.id == quote.id)
+    def update(
+        self,
+        session: Session,
+        id: int,
+        new_text: str | None = None,
+        new_book: Book | None = None,
+        new_fav: bool | None = None,
+    ) -> None:
+        stmt = select(self.model_type).where(self.model_type.id == id)
         results = session.exec(stmt)
         original_quote = results.one()
 
-        original_quote.quote = quote.quote
+        if new_text is not None:
+            original_quote.quote = new_text
+
+        if new_book is not None:
+            original_quote.book = new_book
+            original_quote.book_id = new_book.id
+
+        if new_fav is not None:
+            original_quote.fav = new_fav
 
     def list(
         self,

@@ -7,9 +7,10 @@ from .utils import add_author, add_book, add_quote, session
 
 
 def test_quote_repository_add(session: Session):
+    text_quote = "Remember, the past need not become our future as well."
+
     author = add_author(session, "Brandon Sanderson")
     book = add_book(session, "Elantris", author)
-    text_quote = "Remember, the past need not become our future as well."
     quote = add_quote(
         session,
         book,
@@ -24,11 +25,12 @@ def test_quote_repository_add(session: Session):
 
 
 def test_quote_repository_update(session: Session):
+    bad_text_quote = "the past need not become our future as well."
+    correct_text_quote = "Remember, the past need not become our future as well."
+
     quote_repo = QuoteRepository()
     author = add_author(session, "Brandon Sanderson")
     book = add_book(session, "elantris", author)
-    bad_text_quote = "the past need not become our future as well."
-    correct_text_quote = "Remember, the past need not become our future as well."
     quote = add_quote(
         session,
         book,
@@ -36,8 +38,7 @@ def test_quote_repository_update(session: Session):
     )
     session.commit()
 
-    quote.quote = correct_text_quote
-    quote_repo.update(session, quote)
+    quote_repo.update(session, quote.id, new_text=correct_text_quote)
 
     stmt = select(Quote).where(quote.quote == correct_text_quote)
     result = session.exec(stmt).first()
@@ -46,10 +47,11 @@ def test_quote_repository_update(session: Session):
 
 
 def test_quote_repository_get_by_quote(session: Session):
+    text_quote = "Remember, the past need not become our future as well."
+
     quote_repo = QuoteRepository()
     author = add_author(session, "Brandon Sanderson")
     book = add_book(session, "Elantris", author)
-    text_quote = "Remember, the past need not become our future as well."
     quote = Quote(
         quote=text_quote,
         book=book,

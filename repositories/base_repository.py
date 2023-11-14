@@ -16,7 +16,7 @@ class BaseRepository(ABC):
         pass
 
     @abstractmethod
-    def update(self, session: Session, entity) -> None:
+    def update(self, session: Session, id: int) -> None:
         pass
 
     def delete(self, session: Session, id: int) -> None:

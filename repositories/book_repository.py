@@ -15,14 +15,26 @@ class BookRepository(BaseRepository):
     def add(self, session: Session, book: Book) -> None:
         session.add(book)
 
-    def update(self, session: Session, book: Book) -> None:
-        stmt = select(self.model_type).where(self.model_type.id == book.id)
+    def update(
+        self,
+        session: Session,
+        id: int,
+        new_title: str | None = None,
+        new_status: BookStatus | None = None,
+        new_fav: bool | None = None,
+    ) -> None:
+        stmt = select(self.model_type).where(self.model_type.id == id)
         results = session.exec(stmt)
         original_book = results.one()
 
-        original_book.title = book.title
-        original_book.status = book.status
-        original_book.fav = book.fav
+        if new_title is not None:
+            original_book.title = new_title
+
+        if new_status is not None:
+            original_book.status = new_status
+
+        if new_fav is not None:
+            original_book.fav = new_fav
 
     def get_by_title(self, session: Session, title: str) -> Book | None:
         stmt = select(self.model_type).where(self.model_type.title == title)
