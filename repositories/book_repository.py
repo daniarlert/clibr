@@ -75,7 +75,7 @@ class BookRepository(BaseRepository):
         if order_by == BookOrder.author:
             order_column = Author.name
         elif order_by == BookOrder.id:
-            order_column == self.model_type.id
+            order_column = self.model_type.id
 
         stmt = (
             stmt.order_by(desc(order_column))
