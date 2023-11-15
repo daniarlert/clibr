@@ -3,10 +3,10 @@ from rich.table import Table
 
 
 def print_raw_books_output(results: list[dict]) -> None:
-    print("[bold]id, title, author, status, fav")
+    pprint("[bold]id, title, author, status, fav")
     for result in results:
         pprint(
-            f"{result['Book'].id}, \"{result['Book'].title}\", {result['Author'].name}, {result['Book'].status}, {'Yes' if result['Book'].fav else 'No'}"
+            f"{result['Book'].id},\"{result['Book'].title}\",{result['Author'].name},{result['Book'].status},{'Yes' if result['Book'].fav else 'No'}"
         )
 
 
@@ -31,10 +31,10 @@ def print_formatted_books_output(results: list[list[dict]]) -> None:
 
 
 def print_raw_quotes_output(results: list[dict]) -> None:
-    print("[bold]id, book, quote, author, fav")
+    pprint("[bold]id, book, quote, author, fav")
     for result in results:
         pprint(
-            f"{result['Quote'].id}, \"{result['Book'].title}\", \"{result['Quote'].quote}\", {result['Author'].name}, {'Yes' if result['Quote'].fav else 'No'}"
+            f"{result['Quote'].id},\"{result['Book'].title}\",\"{result['Quote'].quote}\",{result['Author'].name},{'Yes' if result['Quote'].fav else 'No'}"
         )
 
 
