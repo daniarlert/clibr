@@ -227,6 +227,14 @@ def list_books(
             help="Display raw output without formatting",
         ),
     ] = False,
+    total: Annotated[
+        bool,
+        typer.Option(
+            "--total",
+            is_flag=True,
+            help="Display only the total count.",
+        ),
+    ] = False,
 ):
     book_repo = BookRepository()
     author_repo = AuthorRepository()
@@ -258,6 +266,10 @@ def list_books(
                 err_console.print(
                     "No books with the specified criteria were found in your library",
                 )
+                return
+
+            if total:
+                pprint(f"Total: {len(results)}")
                 return
 
             if raw:
@@ -318,7 +330,7 @@ def export_books(
 
     with Session(engine) as session:
         try:
-            results = book_repo.list(session)
+            results = book_repo.list(session, order_by=BookOrder.id)
             if not len(results):
                 err_console.print(
                     "No books found in your library",
@@ -335,8 +347,8 @@ def export_books(
                     writer.writerow(
                         {
                             "id": result["Book"].id,
-                            "title": result["Book"].title.title(),
-                            "author": result["Author"].name,
+                            "title": f"{result["Book"].title.title()}",
+                            "author": f"{result["Author"].name}",
                             "status": result["Book"].status.capitalize(),
                             "fav": "Yes" if result["Book"].fav else "No",
                         }

@@ -247,6 +247,14 @@ def list_quotes(
             help="Display raw output without formatting",
         ),
     ] = False,
+    total: Annotated[
+        bool,
+        typer.Option(
+            "--total",
+            is_flag=True,
+            help="Display only the total count.",
+        ),
+    ] = False,
 ):
     quote_repo = QuoteRepository()
     author_repo = AuthorRepository()
@@ -292,6 +300,10 @@ def list_quotes(
                 err_console.print(
                     "No quotes with the specified criteria were found in your library",
                 )
+                return
+            
+            if total:
+                pprint(f"Total: {len(results)}")
                 return
 
             if raw:
@@ -354,7 +366,7 @@ def export_quotes(
 
     with Session(engine) as session:
         try:
-            results = quote_repo.list(session)
+            results = quote_repo.list(session, order_by=QuoteOrder.id)
             if not len(results):
                 err_console.print(
                     "No quotes found in your library",
@@ -371,9 +383,9 @@ def export_quotes(
                     writer.writerow(
                         {
                             "id": result["Quote"].id,
-                            "quote": result["Quote"].quote,
-                            "book": result["Book"].title.title(),
-                            "author": result["Author"].name,
+                            "quote": f"{result["Quote"].quote}",
+                            "book": f"{result["Book"].title.title()}",
+                            "author": f"{result["Author"].name}",
                             "fav": "Yes" if result["Quote"].fav else "No",
                         }
                     )
